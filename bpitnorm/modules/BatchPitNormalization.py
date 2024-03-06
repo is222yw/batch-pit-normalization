@@ -57,6 +57,7 @@ class BatchPitNorm1d(nn.Module):
         return self.num_pit_samples - self.size
     
     def fill(self, data: Tensor) -> Self:
+        assert self.training, 'Must be in training mode to allow filling.'
         batch_size = data.shape[0]
         cap_left = self.capacity_left
 

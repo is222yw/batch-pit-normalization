@@ -81,6 +81,7 @@ class BatchPitNorm1d_test(unittest.TestCase):
         bpn1d.forward(batch) # should not fill this time in eval mode
         assert bpn1d.size == 32 and bpn1d.capacity_left == 68
 
+        bpn1d.train(True) # Must be set to allow filling
         for _ in range(1000):
             bpn1d.fill(batch)
         
