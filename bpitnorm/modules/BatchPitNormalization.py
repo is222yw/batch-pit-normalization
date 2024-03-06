@@ -17,7 +17,7 @@ class BatchPitNorm1d(nn.Module):
     distribution (built-in support for normal).
 
     This layer does not require the data to be normalized in any way. Similar to ordinary
-    Batch Normalization, it will correct covariate shift. Beyond that, it will reshape the
+    Batch Normalization, it will correct covariate shift. Beyond that, it will modify the
     distribution of the data flowing through to be, e.g., perfectly uniform or normal.
     """
     def __init__(self, num_features: int, num_pit_samples: int, take_num_samples_when_full: int, dev: device, normal_backtransform: bool = True, trainable_bandwidths: bool = False, *args, **kwargs) -> None:
