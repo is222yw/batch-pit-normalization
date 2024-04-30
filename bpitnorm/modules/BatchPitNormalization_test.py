@@ -34,7 +34,6 @@ class BatchPitNorm1d_test(unittest.TestCase):
 
         vmap_result: ndarray = vmap_result.detach().cpu().numpy()
         cdf_data: ndarray = cdf_data.cpu().numpy()
-        from scipy.special import erf
         from scipy.stats.distributions import norm
 
         normal_dist = norm(loc=0.0, scale=1.0)
