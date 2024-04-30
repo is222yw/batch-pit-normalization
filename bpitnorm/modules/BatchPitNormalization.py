@@ -1,10 +1,7 @@
-import numpy as np
 import torch
 from torch import nn, Tensor, empty, fill, device, nan
 from typing import Callable, Self
-from math import sqrt
-
-
+from bpitnorm.modules.Common import standard_normal_cdf, standard_normal_ppf
 
 
 
@@ -19,6 +16,8 @@ class BatchPitNorm1d(nn.Module):
     This layer does not require the data to be normalized in any way. Similar to ordinary
     Batch Normalization, it will correct covariate shift. Beyond that, it will modify the
     distribution of the data flowing through to be, e.g., perfectly uniform or normal.
+
+    Author: Sebastian Hönel
     """
     def __init__(self, num_features: int, num_pit_samples: int, take_num_samples_when_full: int, dev: device, normal_backtransform: bool = True, trainable_bandwidths: bool = False, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -91,7 +90,7 @@ class BatchPitNorm1d(nn.Module):
             bw = 0.9 * torch.min(data.std(), IQR / 1.34) * float(num_samples)**(-.2)
         else:
             bw = torch.sigmoid(bw) # Ensure it's positive.
-        return lambda use_x: 1.0 / num_samples * torch.sum(BatchPitNorm1d.standard_normal_cdf((use_x - data) / bw))
+        return lambda use_x: 1.0 / num_samples * torch.sum(standard_normal_cdf((use_x - data) / bw))
     
 
     def process_merged(self, all_data: Tensor, bandwidths: Tensor) -> Tensor:
@@ -118,35 +117,7 @@ class BatchPitNorm1d(nn.Module):
         result = vfunc(all_data, self.bw)
 
         if self.normal_backtransform:
-            result = BatchPitNorm1d.standard_normal_ppf(x=result)
+            result = standard_normal_ppf(x=result)
         else:
             result -= 0.5
         return result
-
-
-
-# dev = 'cuda'
-# num_feats = 1000
-# num_samples = 64
-# cdf_samples = 3000
-
-# bpn1d = BatchPitNorm1d(input_shape=(num_samples, num_feats), num_pit_samples=cdf_samples, take_num_samples_when_full=16, normal_backtransform=True, trainable_bandwidths=True, dev=dev)
-
-
-# x: Tensor = torch.rand(size=(num_samples, num_feats)).to(dev)
-# res = bpn1d.forward(x=x)
-# bpn1d.eval()
-# print(5)
-
-
-# def test_filling():
-#     dev = 'cuda'
-#     q1d = BatchPitNorm1d(input_shape=(32,10), num_pit_samples=100, take_num_samples_when_full=10, dev=dev, normal_backtransform=False)
-
-#     for _ in range(1000):
-#         q1d.fill(torch.rand(size=(24,10)).to(dev))
-    
-#     return 5
-
-# #test_filling()
-
