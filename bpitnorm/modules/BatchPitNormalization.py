@@ -81,21 +81,6 @@ class BatchPitNorm1d(nn.Module):
 
         return self
     
-    @staticmethod
-    def standard_normal_cdf(x: Tensor) -> Tensor:
-        return 0.5 * (1.0 + torch.special.erf(x / sqrt(2.0)))
-    
-    @staticmethod
-    def standard_normal_ppf(x: Tensor) -> Tensor:
-        # Values smaller/larger than the following will return (-)inf,
-        # so we gotta clip them.
-        _min = 9e-8
-        _max = 1.0 - _min
-        x = torch.clip(input=x, min=_min, max=_max)
-        res = sqrt(2.0) * torch.special.erfinv(2.0 * x - 1.0)
-        assert not torch.any(torch.isnan(res)) and not torch.any(torch.isinf(res))
-        return res
-    
 
     def make_cdf(self, data: Tensor, bw: float) -> Callable[[float], float]:
         num_samples = data.shape[0]
