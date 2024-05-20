@@ -62,11 +62,11 @@ class BatchPitNorm1d(nn.Module):
 
         if cap_left >= batch_size:
             # Full take, store the entire batch's data in our values.
-            self.values[self.size:(self.size + batch_size)] = data
+            self.values[self.size:(self.size + batch_size)] = data.detach()
             self.size += batch_size
         elif cap_left > 0:
             # Take the first elements, then call this method again with remainder of batch.
-            self.values[self.size:self.num_pit_samples] = data[0:cap_left]
+            self.values[self.size:self.num_pit_samples] = data[0:cap_left].detach()
             self.size += cap_left
             # Choose accordingly for the remaining values:
             self.fill(data=data[cap_left:batch_size])
@@ -76,7 +76,7 @@ class BatchPitNorm1d(nn.Module):
             # No capacity left.
             use_batch_indexes = torch.randperm(n=min(batch_size, self.take_num_samples_when_full))
             use_values_indexes = torch.randperm(n=self.num_pit_samples)[0:min(batch_size, self.take_num_samples_when_full)]
-            self.values[use_values_indexes] = data[use_batch_indexes]
+            self.values[use_values_indexes] = data[use_batch_indexes].detach()
 
         return self
     
