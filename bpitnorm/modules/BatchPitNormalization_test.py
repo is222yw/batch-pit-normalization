@@ -132,3 +132,53 @@ class BatchPitNorm1d_test(unittest.TestCase):
             bpn1d.fill(batch)
         
         assert bpn1d.size == 100
+    
+
+    def test_toy_example(self):
+        """
+        A toy-test in the sense that we make an ordinary network that has BPitNorm not only
+        as the first layer but also somewhere in between.
+        """
+        data_bunch = get_iris_dataset(test_size=0.4, seed=1)
+
+        model = nn.Sequential(
+            BatchPitNorm1d(num_features=4, num_pit_samples=100, take_num_samples_when_full=1, dev=dev, bw_select='ISJ'),
+            nn.Linear(in_features=4, out_features=15, device=dev),
+            nn.Dropout(p=0.3),
+            nn.SiLU(inplace=True),
+            BatchPitNorm1d(num_features=15, num_pit_samples=100, take_num_samples_when_full=0, dev=dev, bw_select='Silverman'),
+            nn.Linear(in_features=15, out_features=3, device=dev),
+            nn.SiLU(inplace=True),
+            nn.Softmax(dim=1)).to(device=dev)
+        
+        optim = Adam(params=model.parameters())
+        loss_fn = nn.CrossEntropyLoss()
+
+        X_train = Variable(torch.from_numpy(data_bunch.train_X.to_numpy())).float().to(device=dev)
+        y_train = Variable(torch.from_numpy(data_bunch.train_y.to_numpy())).long().to(device=dev)
+        X_test  = Variable(torch.from_numpy(data_bunch.valid_X.to_numpy())).float().to(device=dev)
+        y_test  = Variable(torch.from_numpy(data_bunch.valid_y.to_numpy())).long().to(device=dev)
+
+        EPOCHS  = 50 if dev.type == 'cuda' else 10
+        loss_list = np.zeros((EPOCHS,))
+        accuracy_list = np.zeros((EPOCHS,))
+
+        torch.manual_seed(0)
+
+        for epoch in range(EPOCHS):
+            y_pred = model(X_train)
+            loss = loss_fn(y_pred, y_train)
+            loss_list[epoch] = loss.item()
+            
+            # Zero gradients
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
+            
+            with torch.no_grad():
+                y_pred = model(X_test)
+                correct = (torch.argmax(y_pred, dim=1) == y_test).type(torch.FloatTensor)
+                accuracy_list[epoch] = correct.mean()
+        
+        assert accuracy_list[0] < accuracy_list[-1], f'{accuracy_list[0]} - {accuracy_list[-1]}'
+        print((accuracy_list[0], accuracy_list[-1]))
