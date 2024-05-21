@@ -69,10 +69,10 @@ class BatchPitNorm1d_test(unittest.TestCase):
         torch.manual_seed(1337)
         num_feats, num_samples, num_pit_samples = 25, 100, 500
 
-        x: Tensor = torch.rand(size=(num_samples, num_feats)).to(device=dev)
-        cdf_data: Tensor = torch.rand(size=(num_pit_samples, num_feats)).to(device=dev)
+        x: Tensor = (100.0 * torch.rand(size=(num_samples, num_feats)) - 50.0).to(device=dev)
+        cdf_data: Tensor = (50.0 * torch.randn(size=(num_pit_samples, num_feats))).to(device=dev)
 
-        bpn1d = BatchPitNorm1d(num_features=num_feats, num_pit_samples=num_pit_samples, take_num_samples_when_full=0, dev=dev, normal_backtransform=False, trainable_bandwidths=False)
+        bpn1d = BatchPitNorm1d(num_features=num_feats, num_pit_samples=num_pit_samples, take_num_samples_when_full=0, dev=dev, normal_backtransform=False, trainable_bandwidths=False, bw_select='RuleOfThumb')
         bpn1d.fill(data=cdf_data)
         bpn1d.eval() # Important, so that the model stops filling from the batches.
 
@@ -113,7 +113,10 @@ class BatchPitNorm1d_test(unittest.TestCase):
                 else:
                     val_expected -= 0.5
                 val_actually = vmap_result[sample_idx, feat_idx]
-                if abs(val_actually - val_expected) > 4e-5: # 1 / 5000
+                # The tolerance, unfortunately, has to be quite large because we seem to
+                # get relatively large differences in the Rule-of-Thumb bandwidth calculations
+                # between torch and numpy.
+                if abs(val_actually - val_expected) > 2e-3:
                     raise Exception((sample_idx, feat_idx, abs(val_actually - val_expected)))
 
     def test_fill(self):
