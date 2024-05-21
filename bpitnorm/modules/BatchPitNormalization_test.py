@@ -1,12 +1,33 @@
 import torch
 import unittest
 
+
 from bpitnorm.modules.BatchPitNormalization import BatchPitNorm1d
 from numpy import abs, ndarray, quantile, sum
 from typing import Callable
-from torch import Tensor, cuda, device
+from torch import Tensor, cuda, device, nn
+from torch.optim import Adam
+from torch.autograd import Variable
 
-from math import exp
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.utils._bunch import Bunch
+from dataclasses import dataclass
+
+
+@dataclass
+class DataBunch:
+    train_X: pd.DataFrame
+    train_y: pd.DataFrame
+    scaler_X: StandardScaler
+    valid_X: pd.DataFrame = None
+    valid_y: pd.DataFrame = None
+    scaler_Y: StandardScaler = None
+
+from math import exp, isnan, isinf
 
 
 dev: device = device('cuda' if cuda.is_available() else 'cpu')
@@ -15,6 +36,32 @@ dev: device = device('cuda' if cuda.is_available() else 'cpu')
 
 def sigmoid(x: float) -> float:
     return 1.0 / (1 + exp(-x))
+
+
+def get_iris_dataset(test_size: float=None, seed: int=0xbeef) -> DataBunch:
+    temp: Bunch = load_iris(as_frame=True)
+    X: pd.DataFrame
+    y: pd.DataFrame
+    X, y = temp.data, temp.target
+
+    if test_size is None:
+        scaler = StandardScaler().fit(X=X)
+        X = pd.DataFrame(data=scaler.transform(X=X), columns=X.columns)
+        # There is validation data and for Iris, Y is one-hot (no scaling of Y)
+        return DataBunch(train_X=X, train_y=y, scaler_X=scaler)
+    
+    assert isinstance(test_size, float) and not isnan(test_size) \
+        and not isinf(test_size) and test_size > 0.01 and test_size < 0.99
+    
+    train_X, valid_X, train_y, valid_y = train_test_split(
+        X, y, test_size=test_size, random_state=seed)
+    
+    scaler_X = StandardScaler().fit(X=train_X)
+    train_X = pd.DataFrame(data=scaler_X.transform(X=train_X), columns=train_X.columns)
+    valid_X = pd.DataFrame(data=scaler_X.transform(X=valid_X), columns=valid_X.columns)
+
+    # Again, there is no scaling for Y
+    return DataBunch(train_X=train_X, valid_X=valid_X, train_y=train_y, valid_y=valid_y, scaler_X=scaler_X)
 
 
 class BatchPitNorm1d_test(unittest.TestCase):
